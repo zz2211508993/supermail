@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<div id="app">
+  <input v-model="message" value='你好啊'>
+  {{message}}
+  <p></p>
+</div>
+<script>
+  class Vue{
+    constructor(options) {
+      //1.保存数据
+      this.$options=options;
+      this.$data=options.data;
+      this.$el=options.el;
+      //2.将data添加到响应式系统中
+      new Observer(this.$data)
+
+      //3.代理thi$data的数据
+      Object.keys(this.$data).forEach(key => {
+        this._proxy(key);
+      })
+      //4.处理el
+      //this就是Vue
+      new Compiler(this.$el,this)
+    }
+    _proxy(key){
+      Object.defineProperty(this,key,{
+        set(newValue){
+          this.$data[key] = newValue;
+        },
+        get(){
+          return this.$data[key];
+        }
+      })
+    }
+  }
+  //观察者
+  class Observer{
+    constructor(data) {
+      //拿到传进来的数据
+      this.data=data;
+      //拿到传进来的数据，并且遍历
+      Object.keys(data).forEach(key =>{
+        this.defineReactive(this.data,key,data[key])
+      })
+    }
+    defineReactive(data,key,val){
+      //一个属性对应着(key) - > 一个Dep对象
+      const dep = new Dep();
+      Object.defineProperty(data,key,{
+        enumerable:true,
+        configurable:true,
+        //获取的属性
+        get(){
+          //如果Dep中有值，就传过去
+          if(Dep.target){
+            dep.addSub(Dep.target);
+          }
+          return val;
+        },
+        //设置的属性
+        set(newValue){
+          //新值等于原来的值，就直接返回
+          if(newValue === val){
+              return
+          }
+          val = newValue;
+          dep.notify()
+        },
+
+      })
+    }
+  }
+  //发布者订阅者
+  class Dep{
+    constructor() {
+      this.subs=[];
+    }
+    addSub(sub){
+      this.subs.push(sub);
+    }
+
+    notify() {
+      this.subs.forEach(sub =>{
+        sub.update();
+      })
+    }
+  }
+  //观察者
+  class Watcher{
+    constructor(node,name,vm) {
+      this.node=node;
+      this.name=name;
+      this.vm=vm;
+      //将Dep.target赋值为Watcher
+      Dep.target=this;
+
+      this.update();
+      //清空内容，没有清空Dep.target那么里面的值可能会重复
+      Dep.target=null;
+    }
+    update(){
+      //将最新的值覆盖掉nodeValue之前的值
+      this.node.nodeValue= this.vm[this.name];
+    }
+  }
+
+  //正则表达式中.是表示
+  //() 代表分组 .代表任意的内容(除了特殊的符号)
+  //+表示匹配一个或者多个 * 表示匹配0或者多个
+  //{}在正则中表示有特殊含义的，所以需要转译
+  const reg = /\{\{(.+)\}\}/
+  class Compiler {
+    constructor(el,vm) {
+      this.el = document.querySelector(el);
+      console.log(this.el)
+      this.vm= vm;
+      console.log(this.vm)
+
+      this.frag = this._createFragment();
+      this.el.appendChild(this.frag);
+    }
+    //创建片段
+    _createFragment(){
+      //创建片段(节点)
+      const frag = document.createDocumentFragment();
+      //保存节点
+      let child;
+      while(child = this.el.firstChild){
+        //解析节点
+        this._compile(child);
+        frag.appendChild(child);
+      }
+      console.log(frag);
+      return frag;
+    }
+    _compile(node){
+      //是1就是标签节点
+      console.log(node)
+      if(node.nodeType ===1){
+        //返回节点的属性集合
+        const attrs = node.attributes;
+        //是否拥有一个v-model的属性
+        if(attrs.hasOwnProperty('v-model')){
+
+          //保存v-model属性的值
+          const name=attrs['v-model'].nodeValue;
+          //给当前节点添加一个input事件,
+          node.addEventListener('input',e =>{
+            //将当前最新的值赋值给vm[name];
+            this.vm[name] = e.target.value;
+          })
+        }
+      }
+      //3就是文本节点
+      if(node.nodeType===3){
+        if(reg.test(node.nodeValue)){
+          //取出第一个()中的所有内容，并且去除两端的空格
+          const name = RegExp.$1.trim();
+          new Watcher(node,name,this.vm)
+        }
+      }
+    }
+  }
+  console.log(reg);
+
+
+
+  const app=new Vue({
+    el:'#app',
+    data:{
+      message:'你好啊',
+    }
+  })
+
+</script>
+
+</body>
+</html>

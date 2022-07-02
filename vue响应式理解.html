@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<!--
+1.app.message修改数据，vue内部是如何监听message内部的改变
+* Object.defineProperty - > 监听对象属性的改变
+2.当数据发生改变，vue是如何知道要通知那些人，界面发生刷新
+* 发布订阅者模式
+-->
+<div id="app">
+  {{message}}
+
+</div>
+<script src="node_modules/vue/dist/vue.js"></script>
+<script>
+  const obj={
+    age:18,
+    name:'123'
+  }
+  Object.keys(obj).forEach((key)=> {
+    let value = obj[key];
+    Object.defineProperty(obj,key,{
+      set(newValue){
+        value=newValue
+        console.log('新设置的'+ key +'值')
+      },
+      get(){
+        console.log('获取的'+ value +'值');
+        return value;
+      }
+    })
+  })
+  //发布者订阅者
+  class Dep{
+    constructor() {
+      //订阅
+      this.subs=[];
+    }
+    //添加数据
+    addSub(watcher){
+      this.subs.push(watcher);
+    }
+    //通知哪些数据发生变化
+    notify(){
+      this.subs.forEach(item=>{
+        item.update();
+      })
+    }
+
+  }
+  //观察者
+  class Watcher{
+    constructor(name,age) {
+      this.name=name;
+      this.age=age;
+    }
+    update(){
+      console.log(this.name + '更新数据')
+    }
+  }
+
+
+  const dep = new Dep();
+
+  const w1 = new Watcher('张三',19);
+  const w2 = new Watcher('李四',20);
+  const w3 = new Watcher('王五',21);
+
+  dep.addSub(w1);
+  dep.addSub(w2);
+  dep.addSub(w3);
+
+  dep.notify();
+
+
+
+
+</script>
+<script>
+  const app = new Vue({
+    el:'#app',
+    data:{
+      message:'哈哈哈'
+    }
+
+  })
+</script>
+</body>
+</html>
